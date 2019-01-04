@@ -6,8 +6,8 @@ Large Movie Review [Dataset](https://nlp.stanford.edu/~amaas/data/sentiment/).
 - 25,000 highly polar movie reviews for training.
 - 25,000 reviews for testing.
 
-Code for conversion between txt files to a single csv file can be found in branch _make_data_csv_file_.
+Code for conversion between aclImdb(txt files) to a single csv file is in _txt_to_csv_script_.
 
-[Copyright Details](https://nlp.stanford.edu/~amaas/papers/wvSent_acl2011.bib).
+[Dataset copyright details](https://nlp.stanford.edu/~amaas/papers/wvSent_acl2011.bib).
 
 
