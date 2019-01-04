@@ -2,6 +2,8 @@ from sklearn.feature_extraction.text import HashingVectorizer
 from sklearn.linear_model import SGDClassifier
 import numpy as np
 import re
+import pickle
+import os
 from nltk.corpus import stopwords
 
 
@@ -77,3 +79,15 @@ for _ in range(45):
 X_test, y_test = get_minibatch(doc_stream, size=5000)
 X_test = vect.transform(X_test)
 print('Accuracy: %.3f' % clf.score(X_test, y_test))
+
+# Serializing
+dest = os.path.join('movieclassifier', 'pkl_objects')
+if not os.path.exists(dest):
+    os.makedirs(dest)
+
+pickle.dump(stop,
+            open(os.path.join(dest, 'stopwords.pkl'), 'wb'),
+            protocol=4)
+pickle.dump(clf,
+           open(os.path.join(dest, 'classifier.pkl'), 'wb'),
+           protocol=4)
