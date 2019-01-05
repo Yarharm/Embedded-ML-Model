@@ -11,3 +11,4 @@ Code for conversion between aclImdb(txt files) to a single csv file is in _txt_t
 [Dataset copyright details](https://nlp.stanford.edu/~amaas/papers/wvSent_acl2011.bib).
 
 
+**out-of-core learning** with SGDClassifier and train a logistic regression model using mini-batches of documents.
