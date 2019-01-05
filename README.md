@@ -12,3 +12,5 @@ Code for conversion between aclImdb(txt files) to a single csv file is in _txt_t
 
 
 **out-of-core learning** with SGDClassifier and train a logistic regression model using mini-batches of documents.
+
+Web app is build upon Flask framework, processed movie reviews are stored in SQLite database and used for the future model training.
