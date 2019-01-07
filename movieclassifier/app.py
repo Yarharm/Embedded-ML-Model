@@ -7,6 +7,9 @@ import numpy as np
 
 # Import HashingVectorizer
 from vectorizer import vect
+# Import run time model update
+from runtime_update import update_model
+
 app = Flask(__name__)
 
 # PREPARE CLASSIFIER
@@ -121,6 +124,9 @@ def feedback():
     sqlite_entry(db, review, y)
     return render_template('thanks.html')
 
+# Update model and run application
 if __name__ == '__main__':
+    clf = update_model(db_path=db,
+                       model= clf,
+                       batch_size=10000)
     app.run()
-
