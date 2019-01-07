@@ -6,8 +6,7 @@ import os
 import numpy as np
 
 # Import HashingVectorizer
-from movieclassifier.vectorizer import vect
-
+from vectorizer import vect
 app = Flask(__name__)
 
 # PREPARE CLASSIFIER
@@ -20,6 +19,8 @@ clf = pickle.load(open(
                      'classifier.pkl'), 'rb'))
 
 # Path to database
+
+
 db = os.path.join(cur_dir, 'reviews.sqlite')
 
 def classify(document):
@@ -62,7 +63,7 @@ def sqlite_entry(path, document, y):
     """
     conn = sqlite3.connect(path)
     c = conn.cursor()
-    c.execute("INSERT INTO review_db (review, sentiment, date"\
+    c.execute("INSERT INTO review_db (review, sentiment, data)"\
               " VALUES (?, ?, DATETIME('now'))", (document, y))
     conn.commit()
     conn.close()
@@ -74,51 +75,52 @@ class ReviewForm(Form):
     moviereview = TextAreaField('',
                                 [validators.DataRequired(),
                                  validators.length(min=15)])  # Review contains at least 15 char
-    @app.route('/')
-    def index(self):
-        """
-        Render reviewform.html (landing page of the app)
-        """
-        form = ReviewForm(request.form)
-        return render_template('reviewform.html', form=form)
+@app.route('/')
+def index():
+    """
+    Render reviewform.html (landing page of the app)
+    """
+    form = ReviewForm(request.form)
+    return render_template('reviewform.html', form=form)
 
-    @app.route('/results', methods=['POST'])
-    def result(self):
-        """ Fetch the contents of the submitted form
-        and pass it to the classifier
+@app.route('/results', methods=['POST'])
+def result():
+    """ Fetch the contents of the submitted form
+    and pass it to the classifier
 
-        :return: form
-            Displa result of the prediction in the render results.html
-        """
-        form = ReviewForm(request.form)
-        if request.method == 'POST' and form.validate():
-            review = request.form['moviereview']
-            y, proba = classify(review)
-            return render_template('results.html',
-                                   content=review,
-                                   prediction=y,
-                                   probability=round(proba*100, 2))
-        return render_template('reviewform.html', form=form)
+    :return: form
+        Displa result of the prediction in the render results.html
+    """
+    form = ReviewForm(request.form)
+    if request.method == 'POST' and form.validate():
+        review = request.form['moviereview']
+        y, proba = classify(review)
+        return render_template('results.html',
+                                content=review,
+                                prediction=y,
+                                probability=round(proba * 100, 2))
+    return render_template('reviewform.html', form=form)
 
-    @app.route('/thanks', methods=['POST'])
-    def feedback(self):
-        """ Fetch predicted result from the results.html
-        and add an entry to the database
+@app.route('/thanks', methods=['POST'])
+def feedback():
+    """ Fetch predicted result from the results.html
+    and add an entry to the database
 
-        :return: form
-            Render thanks.html to thank the user for the feedback
-        """
-        feedback = request.form['feedback_button']
-        review = request.form['review']
-        prediction = request.form['prediction']
+    :return: form
+        Render thanks.html to thank the user for the feedback
+    """
+    feedback = request.form['feedback_button']
+    review = request.form['review']
+    prediction = request.form['prediction']
 
-        inv_label = {'negative': 0, 'positive': 1}
-        y = inv_label[prediction]
-        if feedback == 'Incorrect':
-            y = int(not(y))
-        train(review, y)
-        sqlite_entry(db, review, y)
-        return render_template('thanks.html')
+    inv_label = {'negative': 0, 'positive': 1}
+    y = inv_label[prediction]
+    if feedback == 'Incorrect':
+        y = int(not (y))
+    train(review, y)
+    sqlite_entry(db, review, y)
+    return render_template('thanks.html')
 
-    if __name__ == '__main__':
-        app.run(debug=True)
+if __name__ == '__main__':
+    app.run()
+

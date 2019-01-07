@@ -1,7 +1,8 @@
 body{
-	width:600px;
+	width:400px;
 }
 
 .button{
 	padding-top: 20px;
+	background-color: red;
 }
