@@ -8,7 +8,7 @@ import numpy as np
 # Import HashingVectorizer
 from vectorizer import vect
 # Import run time model update
-from runtime_update import update_model
+from realtime_training import update_model
 
 app = Flask(__name__)
 
