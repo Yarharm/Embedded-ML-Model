@@ -82,12 +82,12 @@ class RNN(object):
         self.learning_rate = learning_rate
         self.embed_size = embed_size  # embedding layers (number of features)
 
-        #self.g = tf.Graph()
-        #with self.g.as_default():
-         #   tf.set_random_seed(1)
-         #   self.build()
-         #   self.saver = tf.train.Saver()  # Saving is optional
-         #   self.init_op = tf.global_variables_initializer()
+        self.g = tf.Graph()
+        with self.g.as_default():
+            tf.set_random_seed(1)
+            self.build()
+            self.saver = tf.train.Saver()  # Saving is optional
+            self.init_op = tf.global_variables_initializer()
 
     def build(self):
         """
@@ -106,7 +106,61 @@ class RNN(object):
                                                   minval=-1, maxval=1), name='embed_lay')
         embed_x = tf.nn.embedding_lookup(embed_lay, tf_x, name='embed_x')  #look up for embedding matrix
 
-        ### Problem of Vanishing GD in RNNs
-        ## !!!!!!!!!!One of these has to be added!!!!!!!!!!
-        # Solution 1: LSTM unit
-        # Solution 2: GRU (Gated Recurrent Unit)
+        # Complex cells with Dropout on top of LSTM (Numb of cells is self.num_layers)
+        cells = tf.contrib.rnn.MultiRNNCell([tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.LSTMCell(self.lstm_size),
+                                                                           output_keep_prob='tf_keep_proba')
+                                             for i in range(self.num_layers)])
+
+        # States of the cell
+        self.initial_state = cells.zero_state(self.batch_size, tf.float32)
+
+        ## Create RNN defined by the cells specifications
+        # Perform fully dynamic unrolling of inputs
+        # self.final_state shape [batch_size, self.num_layers]
+        # lstm_outputs shape [batch_size, max_time, self.num_layers]
+        lstm_outputs, self.final_state = tf.nn.dynamic_rnn(cells, embed_x, initial_state=self.initial_state)
+
+        # Unprocessed final fully connected layer
+        logits = tf.layers.dense(inputs=lstm_outputs[:, -1],
+                                 units=1, activation=None,
+                                 name='logits')
+        logits = tf.squeeze(logits, name='logits_squeezed')
+
+        # Apply activ func on final layer to get probas and labels
+        y_proba = tf.nn.sigmoid(logits, name='probabilities')
+        labels = tf.cast(tf.round(y_proba), tf.int32, name='labels')
+        predictions = {'probabilities': y_proba,
+                       'labels': labels}
+
+        # Cost and Optimizer
+        cost = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labrls=tf_y, logits=logits),
+                              name='cost')
+        optimizer = tf.train.AdamOptimizer(self.learning_rate)
+        train_op = optimizer.minimize(cost, name='train_op')
+
+    def train(self, X_train, y_train, num_epochs):
+        """
+        At the start of each epoch, state of the cell is zero
+        During each epoch, data is pushed along side with the current state
+        At the end of the epoch, state is updated
+        :param X_train: Input data
+        :param y_train: Target data
+        :param num_epochs: Number of epochs
+        :return: None
+        """
+        with tf.Session(graph=self.g) as session:
+            session.run(self.init_op)  # Init variables
+            iteration = 1
+            for epoch in range(num_epochs):
+                state = session.run(self.initial_state)
+                for batch_x, batch_y in batch_generator(X_train, y_train, self.batch_size):
+                    feed = {'tf_x:0': batch_x,
+                            'tf_y:0': batch_y,
+                            'tf_keep_proba:0': 0.5,
+                            self.initial_state: state}
+                    # Uodate state by the end of the epoch
+                    loss, _, state = session.run(['cost:0', 'train_op', self.final_state],
+                                                 feed_dict=feed)
+
+#    def predict(self, X_test):
+#        with tf.Session(graph=g) as session:
