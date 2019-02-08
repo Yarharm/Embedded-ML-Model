@@ -60,9 +60,9 @@ def batch_generator(X, y=None, batch_size=64):
         y = y[:n_batches * batch_size]
     for ii in range(0, len(X), batch_size):
         if y is not None:
-            yield X[ii:batch_size], y[ii:batch_size]
+            yield X[ii:ii+batch_size], y[ii:ii+batch_size]
         else:
-            yield X[ii:batch_size]
+            yield X[ii:ii+batch_size]
     return
 
 ## Word sequence must be converted to the input features
@@ -102,14 +102,18 @@ class RNN(object):
         tf_keep_proba = tf.placeholder(tf.float32, name='tf_keep_proba')
 
         # Embedding layer (Integer encoded review => embedding feature vector)
-        embed_lay = tf.Variable(tf.random_uniform((self.n_words, self.embed_size),  # Real numbers [-1,1]
-                                                  minval=-1, maxval=1), name='embed_lay')
-        embed_x = tf.nn.embedding_lookup(embed_lay, tf_x, name='embed_x')  #look up for embedding matrix
+        embed_lay = tf.Variable(tf.random_uniform([self.n_words, self.embed_size],
+                                                    minval=-1, maxval=1),
+                                name='embed_lay')
+        embed_x = tf.nn.embedding_lookup(embed_lay, tf_x, name='embeded_x')
 
         # Complex cells with Dropout on top of LSTM (Numb of cells is self.num_layers)
-        cells = tf.contrib.rnn.MultiRNNCell([tf.contrib.rnn.DropoutWrapper(tf.contrib.rnn.LSTMCell(self.lstm_size),
-                                                                           output_keep_prob='tf_keep_proba')
-                                             for i in range(self.num_layers)])
+        cells = tf.contrib.rnn.MultiRNNCell(
+            [tf.contrib.rnn.DropoutWrapper(
+                tf.nn.rnn_cell.LSTMCell(self.lstm_size),
+                output_keep_prob=tf_keep_proba)
+                for i in range(self.num_layers)])
+
 
         # States of the cell
         self.initial_state = cells.zero_state(self.batch_size, tf.float32)
@@ -133,7 +137,7 @@ class RNN(object):
                        'labels': labels}
 
         # Cost and Optimizer
-        cost = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labrls=tf_y, logits=logits),
+        cost = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labels=tf_y, logits=logits),
                               name='cost')
         optimizer = tf.train.AdamOptimizer(self.learning_rate)
         train_op = optimizer.minimize(cost, name='train_op')
@@ -162,5 +166,24 @@ class RNN(object):
                     loss, _, state = session.run(['cost:0', 'train_op', self.final_state],
                                                  feed_dict=feed)
 
-#    def predict(self, X_test):
-#        with tf.Session(graph=g) as session:
+    def predict(self, X_test):
+        preds = []
+        with tf.Session(graph=self.g) as session:
+            test_state = session.run(self.initial_state)
+            for ii, batch_x in enumerate(batch_generator(X_test, None, batch_size=self.batch_size), 1):
+                feed = {'tf_x:0': batch_x,
+                        'tf_keep_proba:0': 1.0,
+                        self.initial_state: test_state}
+                pred, test_state = session.run(['labels:0', self.final_state],
+                                               feed_dict=feed)
+                preds.append(pred)
+        return np.concatenate(preds)
+
+# Execution
+n_words = max(list(word_to_int.values())) + 1
+rnn = RNN(n_words=n_words, seq_len=padded_sequence_len, embed_size=256,
+          lstm_size=128, num_layers=1, batch_size=100, learning_rate=0.001)
+
+rnn.train(X_train, y_train, num_epochs=1)
+preds = rnn.predict(X_test)
+print(preds)
